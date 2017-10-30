@@ -163,8 +163,29 @@ class BayesianNetworkModel(object):
         """
         json_blob = json.loads(json_string)
         type_to_network = {}
+        import pdb
         for type_, network_json in json_blob['type_to_network'].items():
+            for state in network_json['states']:
+                if 'parameters' in state['distribution'].keys():
+                    params = state['distribution']['parameters'][0]
+                    state['distribution']['parameters'][0] = {k+'_': v for k, v in params.items()}
+                elif 'table' in state['distribution'].keys():
+                    table = state['distribution']['table']
+                    patched_table = []
+                    for row in table:
+                        patched_row = []
+                        for e in row[:-1]:
+                            patched_row.append(e+'_')
+                        patched_row.append(row[-1])  # marginal probability is final list element
+                        patched_table.append(patched_row)
+                    state['distribution']['table'] = patched_table
+
             type_to_network[type_] = BayesianNetwork.from_json(json.dumps(network_json))
+            bn = type_to_network[type_]
+            # TODO parameters appears to be immutable
+            bn.states[0].distribution.parameters[0] = {k[:-1]: v for k, v in params.items()}
+            # TODO finish un-patching the tables.
+
         fields = list(json_blob['fieldnames'])
         return BayesianNetworkModel(type_to_network, fields, segmenter)
 
