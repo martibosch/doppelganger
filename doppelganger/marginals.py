@@ -8,8 +8,9 @@ import logging
 import pandas
 import requests
 
-logging.basicConfig(filename='logs', filemode='a', level=logging.INFO)
+from pandas.compat import text_type
 
+logging.basicConfig(filename='logs', filemode='a', level=logging.INFO)
 
 CONTROLS = {
     'num_people': {
@@ -62,9 +63,10 @@ CONTROLS = {
     }
 }
 
-
 CONTROL_NAMES = tuple('_'.join([cat, i]) for cat in CONTROLS.keys()
                       for i in CONTROLS[cat].keys())
+
+CENSUS_CODE_COLUMNS = ['STATEFP', 'COUNTYFP', 'PUMA5CE', 'TRACTCE']
 
 
 class CensusFetchException(Exception):
@@ -165,25 +167,35 @@ class Marginals(object):
                     output.append(str(controls_dict[control_name]))
                 data.append(output)
 
-        columns = ['STATEFP', 'COUNTYFP', 'PUMA5CE', 'TRACTCE'] + list(CONTROL_NAMES)
-        return Marginals(pandas.DataFrame(data, columns=columns))
+        control_columns = list(CONTROL_NAMES)
+        marginals_df = pandas.DataFrame(
+            data, columns=CENSUS_CODE_COLUMNS + control_columns)
+        marginals_df[CENSUS_CODE_COLUMNS] = marginals_df[
+            CENSUS_CODE_COLUMNS].astype(text_type)
+        marginals_df[control_columns] = marginals_df[control_columns].astype(
+            int)
+        return Marginals(marginals_df)
 
     @staticmethod
-    def from_csv(infile, state=None, puma=None):
+    def from_csv(infile, state=None, puma=None, dtype=None):
         """Load marginals from file.
 
         Args:
             infile (unicode): path to csv
             state (unicode): state fips code (2-digit)
             puma (unicode): puma code (5-digit)
+            dtype (dict): pandas dtype dict
 
         Returns:
             Marginals: marginals fetched from a csv file
 
         """
-        data = pandas.read_csv(infile)
+        if dtype is None:
+            # Code fields as str to keep leading zeros
+            dtype = {column: text_type for column in CENSUS_CODE_COLUMNS}
+        data = pandas.read_csv(infile, dtype=dtype)
         if state is not None and puma is not None:
-            data = data[data['STATEFP'] == int(state) and data['PUMA5CE'] == int(puma)]
+            data = data[data['STATEFP'] == state and data['PUMA5CE'] == puma]
         return Marginals(data)
 
     def write(self, outfile):

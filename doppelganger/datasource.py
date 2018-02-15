@@ -62,8 +62,13 @@ class PumsData(DirtyDataSource):
         return PumsData(pandas.read_sql_query(query, conn))
 
     @staticmethod
-    def from_csv(infile):
-        data = pandas.read_csv(infile)
+    def from_csv(infile, dtype=None):
+        if dtype is None:
+            from pandas.compat import text_type
+            # Code fields as str to keep leading zeros
+            dtype = {
+                column: text_type for column in [inputs.PUMA.pums_name, inputs.STATE.pums_name]}
+        data = pandas.read_csv(infile, dtype=dtype)
         return PumsData(data)
 
 
@@ -73,6 +78,6 @@ class CleanedData(DataSource):
         self.data = data
 
     @staticmethod
-    def from_csv(infile):
-        data = pandas.read_csv(infile)
+    def from_csv(infile, dtype=None):
+        data = pandas.read_csv(infile, dtype=dtype)
         return CleanedData(data)
