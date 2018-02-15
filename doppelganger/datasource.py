@@ -27,11 +27,13 @@ class DirtyDataSource(DataSource):
 
     def clean(self, field_names, preprocessor, state=None, puma=None):
         cleaned_data = preprocessor.process_dataframe(self.data, field_names, self.name_map)
-        if puma is not None:
-            cleaned_data = cleaned_data[
-                    (cleaned_data[inputs.STATE.name].astype(str) == str(state)) &
-                    (cleaned_data[inputs.PUMA.name].astype(str) == str(puma))
-                ]
+        if state is not None or puma is not None:
+            query_idx = ~cleaned_data.index.isnull()
+            if state is not None:
+                query_idx = query_idx & (cleaned_data[inputs.STATE.name].astype(str) == str(state))
+            if puma is not None:
+                query_idx = query_idx & (cleaned_data[inputs.PUMA.name].astype(str) == str(puma))
+            cleaned_data = cleaned_data[query_idx]
         return CleanedData(cleaned_data)
 
 

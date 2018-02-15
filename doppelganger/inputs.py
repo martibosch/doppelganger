@@ -12,8 +12,6 @@ import datetime
 from enum import Enum
 import math
 
-from pandas.compat import text_type
-
 # Constant for missing data
 UNKNOWN = None
 

@@ -194,8 +194,13 @@ class Marginals(object):
             # Code fields as str to keep leading zeros
             dtype = {column: text_type for column in CENSUS_CODE_COLUMNS}
         data = pandas.read_csv(infile, dtype=dtype)
-        if state is not None and puma is not None:
-            data = data[data['STATEFP'] == state and data['PUMA5CE'] == puma]
+        if state is not None or puma is not None:
+            query_idx = ~data.index.isnull()
+            if state is not None:
+                query_idx = query_idx & (data['STATEFP'].astype(str) == str(state))
+            if puma is not None:
+                query_idx = query_idx & (data['PUMA5CE'].astype(str) == str(puma))
+            data = data[query_idx]
         return Marginals(data)
 
     def write(self, outfile):
