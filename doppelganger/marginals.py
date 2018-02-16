@@ -5,6 +5,7 @@ from __future__ import (
 )
 
 import logging
+import numpy as np
 import pandas
 import requests
 
@@ -184,23 +185,27 @@ class Marginals(object):
             infile (unicode): path to csv
             state (unicode): state fips code (2-digit)
             puma (unicode): puma code (5-digit)
-            dtype (dict): pandas dtype dict
+            dtype (dict {unicode -> type}): pandas dtype dict, sets for each column label (dict key)
+                 its data type (dict value). Since pandas automatically interprets numbers as
+                 numeric types, columns containing codes (e.g. PUMA and state codes) must be set as
+                 text types to preserve leading zeros.
 
         Returns:
             Marginals: marginals fetched from a csv file
 
         """
         if dtype is None:
-            # Code fields as str to keep leading zeros
-            dtype = {column: text_type for column in CENSUS_CODE_COLUMNS}
+            dtype = {
+                column: text_type for column in CENSUS_CODE_COLUMNS
+            }
         data = pandas.read_csv(infile, dtype=dtype)
         if state is not None or puma is not None:
-            query_idx = ~data.index.isnull()
+            query_index = np.ones(len(data), dtype=bool)
             if state is not None:
-                query_idx = query_idx & (data['STATEFP'].astype(str) == str(state))
+                query_index &= data['STATEFP'].astype(str) == str(state)
             if puma is not None:
-                query_idx = query_idx & (data['PUMA5CE'].astype(str) == str(puma))
-            data = data[query_idx]
+                query_index &= data['PUMA5CE'].astype(str) == str(puma)
+            data = data[query_index]
         return Marginals(data)
 
     def write(self, outfile):

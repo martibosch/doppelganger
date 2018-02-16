@@ -4,6 +4,7 @@ from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
 
+import numpy as np
 import pandas
 
 from doppelganger import inputs
@@ -28,12 +29,12 @@ class DirtyDataSource(DataSource):
     def clean(self, field_names, preprocessor, state=None, puma=None):
         cleaned_data = preprocessor.process_dataframe(self.data, field_names, self.name_map)
         if state is not None or puma is not None:
-            query_idx = ~cleaned_data.index.isnull()
+            query_index = np.ones(len(cleaned_data), dtype=bool)
             if state is not None:
-                query_idx = query_idx & (cleaned_data[inputs.STATE.name].astype(str) == str(state))
+                query_index &= cleaned_data[inputs.STATE.name].astype(str) == str(state)
             if puma is not None:
-                query_idx = query_idx & (cleaned_data[inputs.PUMA.name].astype(str) == str(puma))
-            cleaned_data = cleaned_data[query_idx]
+                query_index &= cleaned_data[inputs.PUMA.name].astype(str) == str(puma)
+            cleaned_data = cleaned_data[query_index]
         return CleanedData(cleaned_data)
 
 
@@ -65,11 +66,24 @@ class PumsData(DirtyDataSource):
 
     @staticmethod
     def from_csv(infile, dtype=None):
+        """Load marginals from file.
+
+        Args:
+            infile (unicode): path to csv
+            dtype (dict {unicode -> type}): pandas dtype dict, sets for each column label (dict key)
+                 its data type (dict value). Since pandas automatically interprets numbers as
+                 numeric types, columns containing codes (e.g. PUMA and state codes) must be set as
+                 text types to preserve leading zeros.
+
+        Returns:
+            Marginals: marginals fetched from a csv file
+
+        """
         if dtype is None:
             from pandas.compat import text_type
-            # Code fields as str to keep leading zeros
             dtype = {
-                column: text_type for column in [inputs.PUMA.pums_name, inputs.STATE.pums_name]}
+                column: text_type for column in [inputs.PUMA.pums_name, inputs.STATE.pums_name]
+            }
         data = pandas.read_csv(infile, dtype=dtype)
         return PumsData(data)
 
